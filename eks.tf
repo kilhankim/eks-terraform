@@ -1,9 +1,9 @@
 
-resource "aws_key_pair" "mykey" {
-  key_name = "jjouhiu"
-  public_key = "${file("./jjouhiu.pub")}"
+# resource "aws_key_pair" "mykey" {
+#   key_name = "jjouhiu"
+#   public_key = "${file("./jjouhiu.pub")}"
  
-} 
+# } 
 
 
 
@@ -140,9 +140,12 @@ resource "aws_eks_node_group" "milk-nodegroup" {
 module "eks" {
   source          = "git::https://github.com/terraform-aws-modules/terraform-aws-eks.git?ref=v12.1.0"
   cluster_name    = local.cluster_name
-  vpc_id          = module.vpc.vpc_id
-  subnets         = [module.vpc.milk_private_subnet1.id, module.vpc.milk_private_subnet2.id,
-                     module.vpc.milk_public_subnet1.id, module.vpc.milk_public_subnet2.id ]
+  vpc_id          = module.vpc.vpc_id 
+  # public subnet에서만 만들어질 수 있도록 private subnet을 remove
+
+  # subnets         = [module.vpc.milk_private_subnet1.id, module.vpc.milk_private_subnet2.id,
+  #                    module.vpc.milk_public_subnet1.id, module.vpc.milk_public_subnet2.id ]
+  subnets         = [module.vpc.milk_public_subnet1.id, module.vpc.milk_public_subnet2.id ]  
   cluster_version = "1.18"
 
   node_groups = {
@@ -150,8 +153,11 @@ module "eks" {
       desired_capacity = 3
       max_capacity     = 5
       min_capacity     = 3
-      key_name         = aws_key_pair.mykey.key_name
+      # key_name         = aws_key_pair.mykey.key_name
+      key_name = "perfMaster"
       instance_type    = "t3.micro"
+      node_name ="eks-worker-node"
+      public_ip = true
       source_security_group_ids = [
         module.vpc.milk_bastion_security_group
       ]
