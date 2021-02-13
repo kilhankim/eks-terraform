@@ -390,13 +390,13 @@ resource "aws_security_group" "milk_bastion_security_group" {
   }
 }
 
-/*
+
 resource "aws_instance" "milk_bastion" {
 #   ami = "${data.aws_ami.ubuntu.id}"
     ami = "ami-0c94855ba95c71c99"
     instance_type = "t2.micro"
   availability_zone = "${aws_subnet.milk_public_subnet1.availability_zone}"
-  key_name = "jjouhiu"
+  key_name = "perfMaster"
   vpc_security_group_ids = [
     "${aws_default_security_group.milk_default.id}",
     "${aws_security_group.milk_bastion_security_group.id}"
@@ -406,7 +406,7 @@ resource "aws_instance" "milk_bastion" {
   iam_instance_profile = "${aws_iam_instance_profile.test_profile.name}"
 
   tags ={
-    Name = "milk_bastion"
+    Name = "eks_bastion"
   }
 }
 
@@ -416,7 +416,7 @@ resource "aws_eip" "side_effect_bastion" {
   instance = "${aws_instance.milk_bastion.id}"
   depends_on = ["aws_internet_gateway.milk_igw"]
 }
-*/
+
 
 
 

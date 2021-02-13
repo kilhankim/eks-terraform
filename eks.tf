@@ -5,6 +5,21 @@
  
 # } 
 
+data "aws_iam_user" "kilhan_kim" {
+  user_name = "kilhan.kim"
+}
+data "aws_iam_user" "kilhan-tam" {
+  user_name = "kilhan-tam"
+}
+
+
+data "aws_iam_role" "jjouhiu-eks-cluster-2021" {
+  name = "jjouhiu-eks-cluster-2021"
+}
+data "aws_iam_instance_profile" "jjouhiu-eks-nodegroup-role" {
+  name = "jjouhiu-eks-nodegroup-role"
+}
+
 
 
 module "vpc" {
@@ -138,8 +153,12 @@ resource "aws_eks_node_group" "milk-nodegroup" {
 
  
 module "eks" {
-  source          = "git::https://github.com/terraform-aws-modules/terraform-aws-eks.git?ref=v12.1.0"
+  # source          = "git::https://github.com/terraform-aws-modules/terraform-aws-eks.git?ref=v12.2.0"
+  # source = "github.com/mzcdev/terraform-aws-eks?ref=v0.12.50"
+  source       = "terraform-aws-modules/eks/aws"
+  #source          = "git::https://github.com/terraform-aws-modules/terraform-aws-eks.git"
   cluster_name    = local.cluster_name
+  cluster_enabled_log_types = ["api","controllerManager","scheduler","authenticator","audit"]
   vpc_id          = module.vpc.vpc_id 
   # public subnet에서만 만들어질 수 있도록 private subnet을 remove
 
@@ -147,6 +166,34 @@ module "eks" {
   #                    module.vpc.milk_public_subnet1.id, module.vpc.milk_public_subnet2.id ]
   subnets         = [module.vpc.milk_public_subnet1.id, module.vpc.milk_public_subnet2.id ]  
   cluster_version = "1.18"
+  manage_cluster_iam_resources = false
+  # manage_worker_iam_resources = false
+  cluster_iam_role_name = "${data.aws_iam_role.jjouhiu-eks-cluster-2021.name}"
+  # cluster_iam_role_arn  = "${data.aws_iam_role.jjouhiu-eks-cluster-2021.arn}"
+    #  worker_iam_instance_profile_names = "${data.aws_iam_instance_profile.jjouhiu-eks-nodegroup-role.name}"
+    #   worker_iam_instance_profile_arns	= "${data.aws_iam_instance_profile.jjouhiu-eks-nodegroup-role.arn}"
+  # worker_iam_role_arn  = "${data.aws_iam_instance_profile.jjouhiu-eks-nodegroup-role.arn}"
+  #     worker_iam_role_name = "${data.aws_iam_instance_profile.jjouhiu-eks-nodegroup-role.name}"
+  
+
+  #manage_aws_auth = true
+  manage_aws_auth = false
+
+
+  map_users = [
+    {
+      userarn  = data.aws_iam_user.kilhan_kim.arn 
+      username = data.aws_iam_user.kilhan_kim.user_name 
+      groups    = ["system:masters"]
+    } ,
+    {
+      userarn  = data.aws_iam_user.kilhan-tam.arn 
+      username = data.aws_iam_user.kilhan-tam.user_name 
+      groups    = ["system:masters"]
+    }     
+
+  ]   
+  
 
   node_groups = {
     eks_nodes = {
@@ -159,11 +206,12 @@ module "eks" {
       node_name ="eks-worker-node"
       public_ip = true
       source_security_group_ids = [
-        module.vpc.milk_bastion_security_group
+        module.vpc.milk_bastion_security_group ,
+        module.vpc.milk_default_security_group
       ]
+    
     }
   }
-  manage_aws_auth = false
 }
 
 
@@ -181,7 +229,7 @@ resource "aws_security_group_rule" "milk-cluster-ingress-ssh" {
 
 ############   Local Variable  ######################
 locals {
-  cluster_name = "kilhan-eks-cluster"
+  cluster_name = "lunar-eks-cluster"
   region       = "us-east-1"
 }
 
