@@ -148,7 +148,21 @@ resource "aws_eks_node_group" "milk-nodegroup" {
 */
 
 
+data "aws_eks_cluster" "cluster" {
+  name = module.eks.cluster_id
+}
 
+data "aws_eks_cluster_auth" "cluster" {
+  name = module.eks.cluster_id
+}
+
+provider "kubernetes" {
+  host                   = data.aws_eks_cluster.cluster.endpoint
+  cluster_ca_certificate = base64decode(data.aws_eks_cluster.cluster.certificate_authority.0.data)
+  token                  = data.aws_eks_cluster_auth.cluster.token
+  load_config_file       = false
+  version                = "~> 1.12"
+}
 
 
  
@@ -176,21 +190,16 @@ module "eks" {
   #     worker_iam_role_name = "${data.aws_iam_instance_profile.jjouhiu-eks-nodegroup-role.name}"
   
 
-  #manage_aws_auth = true
-  manage_aws_auth = false
+  manage_aws_auth = true
+  #manage_aws_auth = false
 
 
   map_users = [
     {
-      userarn  = data.aws_iam_user.kilhan_kim.arn 
-      username = data.aws_iam_user.kilhan_kim.user_name 
+      userarn  = "arn:aws:iam::936777008077:user/kilhan.kim"
+      username = "kilhan.kim" 
       groups    = ["system:masters"]
-    } ,
-    {
-      userarn  = data.aws_iam_user.kilhan-tam.arn 
-      username = data.aws_iam_user.kilhan-tam.user_name 
-      groups    = ["system:masters"]
-    }     
+    }    
 
   ]   
   
