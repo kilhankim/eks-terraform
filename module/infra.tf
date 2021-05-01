@@ -1,5 +1,5 @@
 resource "aws_iam_role" "example" {
-  name = "test_role"
+  name = "eks_role"
 
   assume_role_policy = <<EOF
 {
@@ -25,7 +25,7 @@ EOF
 
 
 resource "aws_iam_instance_profile" "test_profile" {
-  name = "test_profile"
+  name = "eks_profile"
   role = "${aws_iam_role.example.name}"
 }
 resource "aws_iam_role_policy" "test_policy" {
@@ -54,7 +54,8 @@ resource "aws_vpc" "milk-vpc" {
   enable_dns_support = true
   instance_tenancy = "default"
   tags={
-      "Name" = "milk-vpc"
+      "Name" = "eks-terraform-vpc"
+      
   }
 }
 resource "aws_default_route_table" "milk" {
@@ -62,20 +63,28 @@ resource "aws_default_route_table" "milk" {
 
   tags={
     Name = "milk-default-rtb"
+    "kubernetes.io/role/elb"="1"
+    "kubernetes.io/role/internal-elb"="1"
   }
 }
 
 data "aws_availability_zones" "all" {} // Availability zone list 
 
 resource "aws_subnet" "milk_public_subnet1" {
+
   vpc_id = "${aws_vpc.milk-vpc.id}"
   cidr_block = "10.10.1.0/24"
   map_public_ip_on_launch = true// 퍼블릭 서브넷이므로 서버 등을 띄울 때 자동으로 퍼블릭 IP가 할당
   availability_zone = "${data.aws_availability_zones.all.names[0]}"
   tags = {
     Name = "milk-public-az-1"
+    "kubernetes.io/role/elb" = "1"
+    "kubernetes.io/cluster/seoul-eks-cluster" = "shared"
   }
 }
+
+
+
 
 resource "aws_subnet" "milk_public_subnet2" {
   vpc_id = "${aws_vpc.milk-vpc.id}"
@@ -84,6 +93,8 @@ resource "aws_subnet" "milk_public_subnet2" {
   availability_zone = "${data.aws_availability_zones.all.names[1]}"
   tags = {
     Name = "milk-public-az-2"
+    "kubernetes.io/role/elb" = "1"
+    "kubernetes.io/cluster/seoul-eks-cluster" = "shared"    
   }
 }
 
@@ -191,7 +202,7 @@ resource "aws_default_security_group" "milk_default" {
   }
 }
 
-
+/*
 // network acl for public subnets
 resource "aws_network_acl" "milk_acl_public" {
   vpc_id = "${aws_vpc.milk-vpc.id}"
@@ -363,7 +374,7 @@ resource "aws_network_acl_rule" "milk_private_egress443" {
   from_port = 443
   to_port = 443
 }
-
+*/
 
 // Basiton Host
 resource "aws_security_group" "milk_bastion_security_group" {
@@ -390,10 +401,37 @@ resource "aws_security_group" "milk_bastion_security_group" {
   }
 }
 
+resource "aws_security_group_rule" "add80" {
+  type              = "ingress"
+  from_port         = 80
+  to_port           = 80
+  protocol          = "tcp"
+  cidr_blocks       = ["0.0.0.0/0"]
+  security_group_id = aws_security_group.milk_bastion_security_group.id
+  depends_on = [
+    aws_security_group.milk_bastion_security_group,
+  ] 
+}
+
+
+
+resource "aws_security_group_rule" "add-eks-nodeport" {
+  type              = "ingress"
+  from_port         = 30000
+  to_port           = 32767
+  protocol          = "tcp"
+  cidr_blocks       = ["0.0.0.0/0"]
+  security_group_id = aws_security_group.milk_bastion_security_group.id
+  depends_on = [
+    aws_security_group.milk_bastion_security_group,
+  ] 
+}
+
+
 
 resource "aws_instance" "milk_bastion" {
 #   ami = "${data.aws_ami.ubuntu.id}"
-    ami = "ami-0c94855ba95c71c99"
+    ami = "ami-038f1ca1bd58a5790"
     instance_type = "t2.micro"
   availability_zone = "${aws_subnet.milk_public_subnet1.availability_zone}"
   key_name = "perfMaster"
@@ -407,15 +445,39 @@ resource "aws_instance" "milk_bastion" {
 
   tags ={
     Name = "eks_bastion"
+    auto-delete="no"
   }
 }
+/////////// eks2 add ////////
+ 
+resource "aws_instance" "milk_bastion2" {
+#   ami = "${data.aws_ami.ubuntu.id}"
+    ami = "ami-038f1ca1bd58a5790"
+    instance_type = "t2.micro"
+  availability_zone = "${aws_subnet.milk_public_subnet2.availability_zone}"
+  key_name = "perfMaster"
+  vpc_security_group_ids = [
+    "${aws_default_security_group.milk_default.id}",
+    "${aws_security_group.milk_bastion_security_group.id}"
+  ]
+  subnet_id = "${aws_subnet.milk_public_subnet2.id}"
+  associate_public_ip_address = true
+  iam_instance_profile = "${aws_iam_instance_profile.test_profile.name}"
 
-
-resource "aws_eip" "side_effect_bastion" {
-  vpc = true
-  instance = "${aws_instance.milk_bastion.id}"
-  depends_on = ["aws_internet_gateway.milk_igw"]
+  tags ={
+    Name = "eks_bastion2"
+    auto-delete="no"
+  }
 }
+/////////// eks2 add ////////
+
+
+
+# resource "aws_eip" "side_effect_bastion" {
+#   vpc = true
+#   instance = "${aws_instance.milk_bastion.id}"
+#   depends_on = ["aws_internet_gateway.milk_igw"]
+# }
 
 
 

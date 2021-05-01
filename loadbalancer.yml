@@ -1,0 +1,43 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: web-service-lb
+spec:
+  selector:
+    app: web
+  ports:
+  - name: webserver
+    protocol: TCP
+    port: 80
+  type: LoadBalancer
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: web-deploy
+spec:
+  replicas: 3
+  selector:           # deployment - pod 대응용
+    matchLabels:
+      app: web
+  template:           # 여기서부터 파드 템플릿
+    metadata:
+      labels:
+        app: web      # 파드의 라벨
+    spec:
+      containers:
+      - name: nginx
+        image: nginx:latest
+
+
+#resource "aws_subnet" "milk_public_subnet2" {
+#  vpc_id = "${aws_vpc.milk-vpc.id}"
+#  cidr_block = "10.10.2.0/24"
+#  map_public_ip_on_launch = true // 퍼블릭 서브넷이므로 서버 등을 띄울 때 자동으로 퍼블릭 IP가 할당
+#  availability_zone = "${data.aws_availability_zones.all.names[1]}"
+#  tags = {
+#    Name = "milk-public-az-2"
+#    "kubernetes.io/role/elb" = "1"
+#    "kubernetes.io/cluster/seoul-eks-cluster" = "shared"    
+#  }
+#}

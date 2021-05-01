@@ -3,5 +3,5 @@ variable "AWS_REGION" {
 }
 
 variable "AWS_PROFILE" {
-  default = "milk"
+  default = "kilhan-tam"
 }
